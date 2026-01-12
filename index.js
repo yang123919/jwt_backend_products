@@ -3,35 +3,32 @@ const mongoose = require("mongoose");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const jwt = require("jsonwebtoken");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
+
 app.use(express.json());
 
-const cors = require("cors");
-
-const corsHandler = cors({
-    origin: "*",
-    methods: "GET, POST, PUT, DELETE",
-    allowedHeaders: ["Content-Type", "Authorization"],
-    optionsSuccessStatus: 200,
-    preflightContinue: true,
-});
-
-app.use(corsHandler);
-
+app.use(
+    cors({
+        origin: "*",
+        methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+    })
+);
+const PORT = process.env.PORT || 5000;
 mongoose
-    .connect("mongodb://127.0.0.1:27017/jwt_with_products")
+    .connect(process.env.MONGO_URI)
     .then(() => {
-        app.listen(3000, () => {
-            console.log("Express Server Started");
+        app.listen(PORT, () => {
+            console.log("MongoDB connected");
+            console.log("Express Server Started on port", PORT);
         });
     })
-    .catch((err) => {
-        console.log(err);
-    });
+    .catch(console.log);
 
 app.use("/user", userRoutes);
-
 
 function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -39,14 +36,11 @@ function verifyToken(req, res, next) {
 
     const token = authHeader.split(" ")[1];
 
-    jwt.verify(token, "6638591936de503893853bba1919b433b3afb1495ba75f60d0011ed3041ad28e7af01e3d009a5bc092f502ca861049d08ed1f1a5936bb892eb58b81ab18d0b8a", (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
     });
 }
 
-app.get("/dashboard", verifyToken, (req, res) => {
-    res.send("You have reached a protected content!");
-});
-app.use("/product", productRoutes)
+app.use("/products", productRoutes);
